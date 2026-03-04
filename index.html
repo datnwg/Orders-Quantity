@@ -630,7 +630,16 @@
 // ============================================================
 const SHEET_ID = '1BCTZ5oUxxN-kVYNqK2kodCUJbgtPdhs3sWfcCVFFr3E';
 const SHEET_NAMES = ['Quy_I', 'Quy_II', 'Quy_III', 'Quy_IV'];
-const API_KEY = 'AIzaSyD7_TmXmSH5DjzIHuCFVLSY_8X_sRFXqNs'; // Public read-only key placeholder
+
+// ⚠️ QUAN TRỌNG: Thay các GID bên dưới bằng GID thực của từng sheet
+// Cách lấy GID: Click vào tab sheet → xem URL → tìm "gid=XXXXXX"
+// Ví dụ URL: ...edit#gid=399287688 → GID là 399287688
+const SHEET_GIDS = {
+  'Quy_I':   '399287688',   // ← GID lấy từ URL khi đang ở tab Quy_I
+  'Quy_II':  '791969228',   // ← Cần thay
+  'Quy_III': '1017668763',  // ← Cần thay
+  'Quy_IV':  '927080069',   // ← Cần thay
+};
 
 const YEAR_COLORS = {
   2023: '#94A3B8',
@@ -672,10 +681,19 @@ let mainChart, seasonChart;
 // FETCH DATA FROM GOOGLE SHEETS (CSV export - no API key needed)
 // ============================================================
 async function fetchSheetCSV(sheetName) {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`Cannot fetch ${sheetName}`);
+  const gid = SHEET_GIDS[sheetName];
+  if (!gid || gid.includes('REPLACE')) {
+    console.warn('GID chua duoc cau hinh cho sheet: ' + sheetName);
+    return [];
+  }
+  // export?format=csv hoat dong voi "Anyone with link can view", khong bi CORS
+  const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/export?format=csv&gid=' + gid;
+  const resp = await fetch(url, { redirect: 'follow' });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status + ' khi fetch ' + sheetName);
   const text = await resp.text();
+  if (!text || text.includes('<!DOCTYPE')) {
+    throw new Error('Sheet ' + sheetName + ' tra ve HTML - kiem tra quyen share');
+  }
   return parseCSV(text);
 }
 
@@ -708,11 +726,11 @@ function parseDate(dateStr, year) {
 }
 
 async function loadAllData() {
-  setLoading('Fetching Q1 data...');
+  setLoading('Đang kết nối Google Sheets...');
   let rawRows = [];
 
   for (let i = 0; i < SHEET_NAMES.length; i++) {
-    setLoading(`Fetching ${SHEET_NAMES[i]} data... (${i+1}/4)`);
+    setLoading(`Đang tải ${SHEET_NAMES[i]}... (${i+1}/4)`);
     try {
       const rows = await fetchSheetCSV(SHEET_NAMES[i]);
       rawRows.push(...rows);
@@ -1243,7 +1261,10 @@ window.addEventListener('resize', () => {
   } catch(e) {
     console.error(e);
     hideLoading();
-    showError('Không thể tải dữ liệu từ Google Sheet. Kiểm tra kết nối hoặc quyền truy cập sheet. ' + e.message);
+    showError(
+  'Không tải được dữ liệu. Nguyên nhân: ' + e.message + 
+  ' | Giải pháp: Đảm bảo sheet đã Share "Anyone with link" và GID đúng trong code.'
+);
   }
 })();
 </script>
