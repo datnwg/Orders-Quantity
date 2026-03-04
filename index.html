@@ -630,15 +630,11 @@
 // ============================================================
 const SHEET_ID = '1BCTZ5oUxxN-kVYNqK2kodCUJbgtPdhs3sWfcCVFFr3E';
 const SHEET_NAMES = ['Quy_I', 'Quy_II', 'Quy_III', 'Quy_IV'];
-
-// ⚠️ QUAN TRỌNG: Thay các GID bên dưới bằng GID thực của từng sheet
-// Cách lấy GID: Click vào tab sheet → xem URL → tìm "gid=XXXXXX"
-// Ví dụ URL: ...edit#gid=399287688 → GID là 399287688
 const SHEET_GIDS = {
-  'Quy_I':   '399287688',   // ← GID lấy từ URL khi đang ở tab Quy_I
-  'Quy_II':  '791969228',   // ← Cần thay
-  'Quy_III': '1017668763',  // ← Cần thay
-  'Quy_IV':  '927080069',   // ← Cần thay
+  'Quy_I':   '399287688',
+  'Quy_II':  '791969228',
+  'Quy_III': '1017668763',
+  'Quy_IV':  '927080069',
 };
 
 const YEAR_COLORS = {
@@ -680,21 +676,72 @@ let mainChart, seasonChart;
 // ============================================================
 // FETCH DATA FROM GOOGLE SHEETS (CSV export - no API key needed)
 // ============================================================
+// Fetch sheet data via Google Visualization API (JSONP) - no CORS issues
+function fetchSheetJSONP(sheetName) {
+  return new Promise((resolve, reject) => {
+    const gid = SHEET_GIDS[sheetName];
+    const cbName = 'gsCallback_' + sheetName.replace(/[^a-z]/gi, '_') + '_' + Date.now();
+    const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+      '/gviz/tq?tqx=out:json;responseHandler:' + cbName + '&gid=' + gid;
+    
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      reject(new Error('Timeout khi fetch ' + sheetName));
+    }, 15000);
+
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      try {
+        const rows = parseGvizResponse(data, sheetName);
+        resolve(rows);
+      } catch(e) {
+        reject(e);
+      }
+    };
+
+    const script = document.createElement('script');
+    script.src = url;
+    script.onerror = () => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      reject(new Error('Script load error for ' + sheetName));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+function parseGvizResponse(data, sheetName) {
+  // data.table.cols = [{label, type}, ...]
+  // data.table.rows = [{c: [{v: value}, ...]}, ...]
+  if (!data || !data.table) throw new Error('No table data in ' + sheetName);
+  
+  const cols = data.table.cols;
+  const rows = data.table.rows;
+  const result = []; // array of CSV-like string arrays
+  
+  // Build header row
+  const header = cols.map(c => c.label || '');
+  result.push(header);
+  
+  // Build data rows
+  for (const row of rows) {
+    if (!row || !row.c) continue;
+    const cells = row.c.map(cell => {
+      if (!cell || cell.v === null || cell.v === undefined) return '';
+      // For date objects google returns Date(year,month,day) - we want the formatted string
+      if (cell.f) return cell.f; // formatted value preferred
+      return String(cell.v);
+    });
+    result.push(cells);
+  }
+  return result;
+}
+
 async function fetchSheetCSV(sheetName) {
-  const gid = SHEET_GIDS[sheetName];
-  if (!gid || gid.includes('REPLACE')) {
-    console.warn('GID chua duoc cau hinh cho sheet: ' + sheetName);
-    return [];
-  }
-  // export?format=csv hoat dong voi "Anyone with link can view", khong bi CORS
-  const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/export?format=csv&gid=' + gid;
-  const resp = await fetch(url, { redirect: 'follow' });
-  if (!resp.ok) throw new Error('HTTP ' + resp.status + ' khi fetch ' + sheetName);
-  const text = await resp.text();
-  if (!text || text.includes('<!DOCTYPE')) {
-    throw new Error('Sheet ' + sheetName + ' tra ve HTML - kiem tra quyen share');
-  }
-  return parseCSV(text);
+  return fetchSheetJSONP(sheetName);
 }
 
 function parseCSV(text) {
@@ -713,68 +760,94 @@ function parseCSV(text) {
 }
 
 function parseDate(dateStr, year) {
-  // Format: "Wed, Jan 1" or "Sun, Jan 1"
   if (!dateStr || dateStr === '') return null;
-  // Remove quotes
   dateStr = dateStr.replace(/^"|"$/g, '').trim();
   const months = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
-  const match = dateStr.match(/(\w+),\s+(\w+)\s+(\d+)/);
-  if (!match) return null;
-  const [_, dow, mon, day] = match;
-  if (!months.hasOwnProperty(mon)) return null;
-  return new Date(year, months[mon], parseInt(day));
+
+  // Format 1: "Wed, Jan 1" (original sheet format)
+  const m1 = dateStr.match(/(\w+),\s+(\w+)\s+(\d+)/);
+  if (m1) {
+    const mon = m1[2], day = parseInt(m1[3]);
+    if (months.hasOwnProperty(mon)) return new Date(year, months[mon], day);
+  }
+
+  // Format 2: "Jan 1, 2024" (gviz formatted)
+  const m2 = dateStr.match(/(\w+)\s+(\d+),?\s*(\d{4})?/);
+  if (m2) {
+    const mon = m2[1], day = parseInt(m2[2]);
+    const yr = m2[3] ? parseInt(m2[3]) : year;
+    if (months.hasOwnProperty(mon)) return new Date(yr, months[mon], day);
+  }
+
+  // Format 3: "2024-01-15" (ISO)
+  const m3 = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m3) return new Date(parseInt(m3[1]), parseInt(m3[2])-1, parseInt(m3[3]));
+
+  // Format 4: "1/15/2024" (US format)
+  const m4 = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m4) return new Date(parseInt(m4[3]), parseInt(m4[1])-1, parseInt(m4[2]));
+
+  console.warn('Cannot parse date:', dateStr);
+  return null;
 }
 
 async function loadAllData() {
   setLoading('Đang kết nối Google Sheets...');
-  let rawRows = [];
 
   for (let i = 0; i < SHEET_NAMES.length; i++) {
-    setLoading(`Đang tải ${SHEET_NAMES[i]}... (${i+1}/4)`);
+    const sheetName = SHEET_NAMES[i];
+    setLoading('Đang tải ' + sheetName + '... (' + (i+1) + '/4)');
     try {
-      const rows = await fetchSheetCSV(SHEET_NAMES[i]);
-      rawRows.push(...rows);
+      const rows = await fetchSheetCSV(sheetName);
+      if (!rows || rows.length < 2) { console.warn('Empty sheet:', sheetName); continue; }
+
+      // Header row: [2023, "2023 Sale", 2024, "2024 Sale", ...]
+      const header = rows[0];
+      console.log('Header for', sheetName, ':', header);
+
+      const yearCols = [];
+      for (let c = 0; c < header.length; c++) {
+        const val = String(header[c] || '').replace(/^"|"$/g,'').trim();
+        const yearVal = parseInt(val);
+        if (!isNaN(yearVal) && yearVal > 2000 && yearVal < 2100) {
+          yearCols.push({ year: yearVal, dateCol: c, saleCol: c + 1 });
+        }
+      }
+      console.log('Year cols found:', yearCols);
+
+      // Initialize year arrays if not existing
+      yearCols.forEach(yc => { if (!allData[yc.year]) allData[yc.year] = []; });
+
+      // Parse data rows
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        for (const yc of yearCols) {
+          const dateStr = String(row[yc.dateCol] || '').replace(/^"|"$/g,'').trim();
+          const salesRaw = String(row[yc.saleCol] || '').replace(/^"|"$/g,'').trim();
+          const sales = parseInt(salesRaw);
+          if (!dateStr || isNaN(sales) || sales < 0) continue;
+          const d = parseDate(dateStr, yc.year);
+          if (!d) continue;
+          allData[yc.year].push({ date: d, sales });
+        }
+      }
+
     } catch(e) {
-      console.warn('Failed sheet:', SHEET_NAMES[i], e);
-    }
-  }
-
-  // Parse header row to find year columns
-  // Row 0 should be header: 2023, 2023 Sale, 2024, 2024 Sale, ...
-  const header = rawRows[0];
-  const yearCols = []; // [ {year, dateCol, saleCol} ]
-
-  for (let c = 0; c < header.length; c += 2) {
-    const yearVal = parseInt((header[c] || '').replace(/^"|"$/g,''));
-    if (!isNaN(yearVal) && yearVal > 2000) {
-      yearCols.push({ year: yearVal, dateCol: c, saleCol: c + 1 });
-    }
-  }
-
-  // Initialize allData
-  yearCols.forEach(yc => { allData[yc.year] = []; });
-
-  // Parse data rows
-  for (let r = 1; r < rawRows.length; r++) {
-    const row = rawRows[r];
-    for (const yc of yearCols) {
-      const dateStr = (row[yc.dateCol] || '').replace(/^"|"$/g,'').trim();
-      const salesStr = (row[yc.saleCol] || '').replace(/^"|"$/g,'').trim();
-      const sales = parseInt(salesStr);
-      if (!dateStr || isNaN(sales)) continue;
-      const d = parseDate(dateStr, yc.year);
-      if (!d) continue;
-      allData[yc.year].push({ date: d, sales });
+      console.error('Failed sheet:', sheetName, e);
+      setLoading('Lỗi tải ' + sheetName + ': ' + e.message + ' - tiếp tục...');
+      await new Promise(r => setTimeout(r, 1000));
     }
   }
 
   // Sort each year's data by date
   for (const y in allData) {
     allData[y].sort((a, b) => a.date - b.date);
+    console.log('Year', y, ':', allData[y].length, 'records');
   }
 
   availableYears = Object.keys(allData).map(Number).filter(y => allData[y].length > 0).sort();
   activeYears = new Set(availableYears);
+  console.log('Available years:', availableYears);
 }
 
 // ============================================================
