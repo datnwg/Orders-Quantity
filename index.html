@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ETSY Sales Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F5F0;
+    --bg2: #EFECEA;
+    --card: #FFFFFF;
+    --border: #E2DDD8;
+    --text: #1A1714;
+    --text2: #6B6560;
+    --text3: #9E9890;
+    --accent: #C84B31;
+    --accent2: #2563EB;
+    --accent3: #059669;
+    --accent4: #7C3AED;
+    --year2023: #94A3B8;
+    --year2024: #2563EB;
+    --year2025: #059669;
+    --year2026: #E11D48;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    font-style: italic;
+  }
+
+  .logo-text {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text3);
+    font-weight: 400;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    background: #22C55E;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.2); }
+  }
+
+  .status-text {
+    font-size: 12px;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .last-update {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* MAIN LAYOUT */
+  .container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 24px 32px;
+  }
+
+  /* CONTROL PANEL */
+  .control-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .control-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .control-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  /* Year Toggle Buttons */
+  .year-btn {
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: var(--text2);
+  }
+
+  .year-btn.active-2023 { background: #94A3B8; border-color: #94A3B8; color: white; }
+  .year-btn.active-2024 { background: #2563EB; border-color: #2563EB; color: white; }
+  .year-btn.active-2025 { background: #059669; border-color: #059669; color: white; }
+  .year-btn.active-2026 { background: #E11D48; border-color: #E11D48; color: white; }
+
+  /* Granularity */
+  .gran-btn {
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: var(--text2);
+  }
+
+  .gran-btn.active {
+    background: var(--text);
+    border-color: var(--text);
+    color: white;
+  }
+
+  /* Season Toggle */
+  .season-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .toggle-switch {
+    width: 36px; height: 20px;
+    background: var(--border);
+    border-radius: 10px;
+    position: relative;
+    transition: background 0.2s;
+    cursor: pointer;
+    border: none;
+    outline: none;
+  }
+
+  .toggle-switch.on { background: var(--accent); }
+
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  .toggle-switch.on::after { transform: translateX(16px); }
+
+  .toggle-label {
+    font-size: 13px;
+    color: var(--text2);
+    font-weight: 500;
+  }
+
+  /* Divider */
+  .control-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--border);
+  }
+
+  /* SUMMARY CARDS */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+  }
+
+  .card:hover { box-shadow: var(--shadow-lg); }
+
+  .card-accent-bar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 14px 14px 0 0;
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 8px;
+  }
+
+  .card-value {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .card-sub {
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  .yoy-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 6px;
+  }
+
+  .yoy-badge.up { background: #DCFCE7; color: #15803D; }
+  .yoy-badge.down { background: #FEE2E2; color: #DC2626; }
+  .yoy-badge.neutral { background: #F1F5F9; color: #475569; }
+
+  /* CHART AREA */
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+  }
+
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
+
+  .chart-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  .chart-subtitle {
+    font-size: 13px;
+    color: var(--text3);
+    margin-top: 4px;
+  }
+
+  #mainChart {
+    width: 100%;
+    height: 420px;
+  }
+
+  /* SEASON LEGEND */
+  .season-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .season-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid;
+    cursor: default;
+  }
+
+  .season-dot {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* BOTTOM ROW */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  /* Seasonal performance chart */
+  #seasonChart {
+    width: 100%;
+    height: 280px;
+  }
+
+  /* Loading state */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    transition: opacity 0.5s;
+  }
+
+  .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+
+  .loading-logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 48px;
+    color: var(--accent);
+    font-style: italic;
+    margin-bottom: 24px;
+  }
+
+  .loading-bar-container {
+    width: 240px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .loading-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    animation: loadingAnim 2s ease-in-out infinite;
+  }
+
+  @keyframes loadingAnim {
+    0% { width: 0%; margin-left: 0; }
+    50% { width: 60%; margin-left: 20%; }
+    100% { width: 0%; margin-left: 100%; }
+  }
+
+  .loading-text {
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--text3);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Error state */
+  .error-banner {
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    border-radius: 12px;
+    padding: 16px 20px;
+    color: #DC2626;
+    font-size: 14px;
+    margin-bottom: 20px;
+    display: none;
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .container { padding: 16px; }
+    .bottom-grid { grid-template-columns: 1fr; }
+    .control-panel { gap: 16px; }
+  }
+
+  .top-days-list {
+    list-style: none;
+  }
+
+  .top-day-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .top-day-item:last-child { border-bottom: none; }
+
+  .top-day-rank {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text3);
+    width: 20px;
+    text-align: right;
+  }
+
+  .top-day-date {
+    font-size: 13px;
+    color: var(--text2);
+    flex: 1;
+  }
+
+  .top-day-year {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: white;
+  }
+
+  .top-day-sales {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-logo">E</div>
+  <div class="loading-bar-container">
+    <div class="loading-bar"></div>
+  </div>
+  <div class="loading-text" id="loadingText">Connecting to Google Sheets...</div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">E</div>
+    <div>
+      <div class="logo-text">ETSY Analytics</div>
+      <div class="logo-sub">Sales Dashboard</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-text">
+      <div class="status-dot"></div>
+      Live Data
+    </div>
+    <div class="last-update" id="lastUpdate">—</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ERROR BANNER -->
+  <div class="error-banner" id="errorBanner"></div>
+
+  <!-- CONTROL PANEL -->
+  <div class="control-panel">
+
+    <div class="control-group">
+      <div class="control-label">Năm hiển thị</div>
+      <div class="control-row" id="yearButtons"></div>
+    </div>
+
+    <div class="control-divider"></div>
+
+    <div class="control-group">
+      <div class="control-label">Granularity</div>
+      <div class="control-row">
+        <button class="gran-btn active" data-gran="day" onclick="setGranularity('day', this)">Ngày</button>
+        <button class="gran-btn" data-gran="week" onclick="setGranularity('week', this)">Tuần</button>
+        <button class="gran-btn" data-gran="month" onclick="setGranularity('month', this)">Tháng</button>
+        <button class="gran-btn" data-gran="quarter" onclick="setGranularity('quarter', this)">Quý</button>
+      </div>
+    </div>
+
+    <div class="control-divider"></div>
+
+    <div class="control-group">
+      <div class="control-label">Shopping Seasons</div>
+      <div class="control-row">
+        <button class="toggle-switch on" id="seasonToggle" onclick="toggleSeasons()"></button>
+        <span class="toggle-label">Hiển thị mùa mua sắm US</span>
+      </div>
+    </div>
+
+    <div class="control-divider"></div>
+
+    <div class="control-group">
+      <div class="control-label">Khoảng thời gian</div>
+      <div class="control-row">
+        <button class="gran-btn active" onclick="setRange('all', this)" id="rangeAll">Cả năm</button>
+        <button class="gran-btn" onclick="setRange('q1', this)">Q1</button>
+        <button class="gran-btn" onclick="setRange('q2', this)">Q2</button>
+        <button class="gran-btn" onclick="setRange('q3', this)">Q3</button>
+        <button class="gran-btn" onclick="setRange('q4', this)">Q4</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SUMMARY CARDS -->
+  <div class="cards-grid" id="cardsGrid">
+    <!-- Generated by JS -->
+  </div>
+
+  <!-- MAIN CHART -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Doanh số theo thời gian</div>
+        <div class="chart-subtitle" id="chartSubtitle">Đang tải dữ liệu...</div>
+      </div>
+    </div>
+    <div id="mainChart"></div>
+    <div class="season-legend" id="seasonLegend"></div>
+  </div>
+
+  <!-- BOTTOM ROW -->
+  <div class="bottom-grid">
+
+    <!-- Seasonal Performance -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title" style="font-size:18px">Hiệu suất theo mùa</div>
+          <div class="chart-subtitle">So sánh doanh số mỗi mùa mua sắm qua các năm</div>
+        </div>
+      </div>
+      <div id="seasonChart"></div>
+    </div>
+
+    <!-- Top Days -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title" style="font-size:18px">Ngày bán đỉnh nhất</div>
+          <div class="chart-subtitle">Top 10 ngày doanh số cao nhất toàn lịch sử</div>
+        </div>
+      </div>
+      <ul class="top-days-list" id="topDaysList"></ul>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const SHEET_ID = '1BCTZ5oUxxN-kVYNqK2kodCUJbgtPdhs3sWfcCVFFr3E';
+const SHEET_NAMES = ['Quy_I', 'Quy_II', 'Quy_III', 'Quy_IV'];
+const API_KEY = 'AIzaSyD7_TmXmSH5DjzIHuCFVLSY_8X_sRFXqNs'; // Public read-only key placeholder
+
+const YEAR_COLORS = {
+  2023: '#94A3B8',
+  2024: '#2563EB',
+  2025: '#059669',
+  2026: '#E11D48'
+};
+
+// US Shopping Seasons
+const SEASONS = [
+  { name: "New Year", emoji: "🎊", start: "01-01", end: "01-07", color: "#F59E0B", textColor: "#92400E" },
+  { name: "Valentine's", emoji: "💝", start: "02-01", end: "02-14", color: "#EC4899", textColor: "#831843" },
+  { name: "St. Patrick's", emoji: "🍀", start: "03-10", end: "03-17", color: "#10B981", textColor: "#064E3B" },
+  { name: "Easter", emoji: "🐣", start: "03-18", end: "04-05", color: "#F3E03B", textColor: "#713F12" },
+  { name: "Mother's Day", emoji: "🌸", start: "04-25", end: "05-12", color: "#F472B6", textColor: "#831843" },
+  { name: "Memorial Day", emoji: "🇺🇸", start: "05-20", end: "05-27", color: "#3B82F6", textColor: "#1E3A5F" },
+  { name: "Father's Day", emoji: "👔", start: "05-28", end: "06-16", color: "#60A5FA", textColor: "#1E3A5F" },
+  { name: "4th of July", emoji: "🎆", start: "06-25", end: "07-04", color: "#EF4444", textColor: "#7F1D1D" },
+  { name: "Back to School", emoji: "📚", start: "07-15", end: "09-05", color: "#F97316", textColor: "#7C2D12" },
+  { name: "Halloween", emoji: "🎃", start: "10-01", end: "10-31", color: "#D97706", textColor: "#451A03" },
+  { name: "Thanksgiving", emoji: "🦃", start: "11-15", end: "11-28", color: "#92400E", textColor: "#FEF3C7" },
+  { name: "Black Friday", emoji: "🛍️", start: "11-25", end: "12-03", color: "#1F2937", textColor: "#F9FAFB" },
+  { name: "Christmas", emoji: "🎄", start: "12-01", end: "12-25", color: "#DC2626", textColor: "#FEF2F2" },
+  { name: "New Year's Eve", emoji: "✨", start: "12-26", end: "12-31", color: "#7C3AED", textColor: "#EDE9FE" },
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let allData = {}; // { year: [ {date, sales}, ... ] }
+let availableYears = [];
+let activeYears = new Set();
+let showSeasons = true;
+let granularity = 'day';
+let rangeFilter = 'all';
+let mainChart, seasonChart;
+
+// ============================================================
+// FETCH DATA FROM GOOGLE SHEETS (CSV export - no API key needed)
+// ============================================================
+async function fetchSheetCSV(sheetName) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`Cannot fetch ${sheetName}`);
+  const text = await resp.text();
+  return parseCSV(text);
+}
+
+function parseCSV(text) {
+  const lines = text.split('\n').filter(l => l.trim());
+  return lines.map(line => {
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let c of line) {
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+}
+
+function parseDate(dateStr, year) {
+  // Format: "Wed, Jan 1" or "Sun, Jan 1"
+  if (!dateStr || dateStr === '') return null;
+  // Remove quotes
+  dateStr = dateStr.replace(/^"|"$/g, '').trim();
+  const months = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+  const match = dateStr.match(/(\w+),\s+(\w+)\s+(\d+)/);
+  if (!match) return null;
+  const [_, dow, mon, day] = match;
+  if (!months.hasOwnProperty(mon)) return null;
+  return new Date(year, months[mon], parseInt(day));
+}
+
+async function loadAllData() {
+  setLoading('Fetching Q1 data...');
+  let rawRows = [];
+
+  for (let i = 0; i < SHEET_NAMES.length; i++) {
+    setLoading(`Fetching ${SHEET_NAMES[i]} data... (${i+1}/4)`);
+    try {
+      const rows = await fetchSheetCSV(SHEET_NAMES[i]);
+      rawRows.push(...rows);
+    } catch(e) {
+      console.warn('Failed sheet:', SHEET_NAMES[i], e);
+    }
+  }
+
+  // Parse header row to find year columns
+  // Row 0 should be header: 2023, 2023 Sale, 2024, 2024 Sale, ...
+  const header = rawRows[0];
+  const yearCols = []; // [ {year, dateCol, saleCol} ]
+
+  for (let c = 0; c < header.length; c += 2) {
+    const yearVal = parseInt((header[c] || '').replace(/^"|"$/g,''));
+    if (!isNaN(yearVal) && yearVal > 2000) {
+      yearCols.push({ year: yearVal, dateCol: c, saleCol: c + 1 });
+    }
+  }
+
+  // Initialize allData
+  yearCols.forEach(yc => { allData[yc.year] = []; });
+
+  // Parse data rows
+  for (let r = 1; r < rawRows.length; r++) {
+    const row = rawRows[r];
+    for (const yc of yearCols) {
+      const dateStr = (row[yc.dateCol] || '').replace(/^"|"$/g,'').trim();
+      const salesStr = (row[yc.saleCol] || '').replace(/^"|"$/g,'').trim();
+      const sales = parseInt(salesStr);
+      if (!dateStr || isNaN(sales)) continue;
+      const d = parseDate(dateStr, yc.year);
+      if (!d) continue;
+      allData[yc.year].push({ date: d, sales });
+    }
+  }
+
+  // Sort each year's data by date
+  for (const y in allData) {
+    allData[y].sort((a, b) => a.date - b.date);
+  }
+
+  availableYears = Object.keys(allData).map(Number).filter(y => allData[y].length > 0).sort();
+  activeYears = new Set(availableYears);
+}
+
+// ============================================================
+// GRANULARITY AGGREGATION
+// ============================================================
+function aggregateData(dataArr, gran) {
+  if (gran === 'day') return dataArr.map(d => ({ label: formatDate(d.date), value: d.sales, date: d.date }));
+
+  const groups = {};
+  for (const d of dataArr) {
+    let key;
+    if (gran === 'week') {
+      const monday = getMonday(d.date);
+      key = formatDate(monday);
+    } else if (gran === 'month') {
+      key = `${d.date.getFullYear()}-${String(d.date.getMonth()+1).padStart(2,'0')}`;
+    } else if (gran === 'quarter') {
+      key = `${d.date.getFullYear()}-Q${Math.ceil((d.date.getMonth()+1)/3)}`;
+    }
+    if (!groups[key]) groups[key] = { label: key, value: 0, date: d.date };
+    groups[key].value += d.sales;
+  }
+  return Object.values(groups).sort((a, b) => a.date - b.date);
+}
+
+function getMonday(d) {
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff));
+}
+
+function formatDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ============================================================
+// RANGE FILTER
+// ============================================================
+function filterByRange(dataArr, range) {
+  if (range === 'all') return dataArr;
+  const qMap = { q1: [0,2], q2: [3,5], q3: [6,8], q4: [9,11] };
+  const [mStart, mEnd] = qMap[range] || [0,11];
+  return dataArr.filter(d => d.date.getMonth() >= mStart && d.date.getMonth() <= mEnd);
+}
+
+// ============================================================
+// BUILD COMMON X-AXIS (MM-DD)
+// ============================================================
+function buildXAxis() {
+  // Build all unique MM-DD labels across active years
+  const labelSet = new Set();
+  for (const y of activeYears) {
+    if (!allData[y]) continue;
+    const filtered = filterByRange(allData[y], rangeFilter);
+    const agg = aggregateData(filtered, granularity);
+    agg.forEach(d => {
+      if (granularity === 'day') {
+        const mmdd = d.label.slice(5); // YYYY-MM-DD -> MM-DD
+        labelSet.add(mmdd);
+      } else {
+        labelSet.add(d.label);
+      }
+    });
+  }
+  return Array.from(labelSet).sort();
+}
+
+// ============================================================
+// RENDER MAIN CHART
+// ============================================================
+function renderMainChart() {
+  if (!mainChart) {
+    mainChart = echarts.init(document.getElementById('mainChart'));
+  }
+
+  const xLabels = buildXAxis();
+
+  const series = [];
+
+  for (const y of availableYears) {
+    if (!activeYears.has(y) || !allData[y]) continue;
+
+    const filtered = filterByRange(allData[y], rangeFilter);
+    const agg = aggregateData(filtered, granularity);
+
+    // Map to x-axis
+    const valueMap = {};
+    agg.forEach(d => {
+      const key = granularity === 'day' ? d.label.slice(5) : d.label;
+      valueMap[key] = d.value;
+    });
+
+    const data = xLabels.map(x => valueMap[x] || null);
+
+    series.push({
+      name: String(y),
+      type: 'line',
+      data,
+      smooth: 0.3,
+      connectNulls: false,
+      lineStyle: { color: YEAR_COLORS[y], width: 2 },
+      itemStyle: { color: YEAR_COLORS[y] },
+      symbol: granularity === 'day' ? 'none' : 'circle',
+      symbolSize: 6,
+      emphasis: {
+        lineStyle: { width: 3 },
+        itemStyle: { borderWidth: 2, borderColor: '#fff' }
+      },
+      tooltip: { valueFormatter: v => v ? `${v} orders` : '-' }
+    });
+  }
+
+  // Season markAreas
+  const markAreaData = [];
+  if (showSeasons && granularity === 'day') {
+    for (const season of SEASONS) {
+      markAreaData.push([
+        { xAxis: season.start, itemStyle: { color: season.color + '22' }, label: { show: true, position: 'insideTop', formatter: season.emoji, fontSize: 14 } },
+        { xAxis: season.end }
+      ]);
+    }
+  }
+
+  // Add markArea to first active series if exists
+  if (series.length > 0 && markAreaData.length > 0) {
+    series[0].markArea = {
+      silent: true,
+      data: markAreaData
+    };
+  }
+
+  // Format x-axis labels
+  const xFormatter = (val) => {
+    if (granularity === 'day') {
+      const [mm, dd] = val.split('-');
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return `${months[parseInt(mm)-1]} ${parseInt(dd)}`;
+    }
+    return val;
+  };
+
+  const option = {
+    backgroundColor: 'transparent',
+    animation: true,
+    animationDuration: 800,
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#fff',
+      borderColor: '#E2DDD8',
+      borderWidth: 1,
+      textStyle: { color: '#1A1714', fontFamily: 'DM Sans' },
+      formatter: (params) => {
+        let html = `<div style="font-weight:600;margin-bottom:6px;color:#6B6560;font-size:12px">${params[0].axisValue}</div>`;
+        // Find season
+        if (granularity === 'day') {
+          const season = SEASONS.find(s => params[0].axisValue >= s.start && params[0].axisValue <= s.end);
+          if (season) html = `<div style="margin-bottom:8px;font-size:12px">${season.emoji} ${season.name}</div>` + html;
+        }
+        params.forEach(p => {
+          if (p.value !== null && p.value !== undefined) {
+            html += `<div style="display:flex;align-items:center;gap:8px;margin:3px 0">
+              <span style="width:10px;height:10px;border-radius:50%;background:${p.color};display:inline-block"></span>
+              <span style="color:#6B6560">${p.seriesName}</span>
+              <span style="font-weight:600;font-family:'JetBrains Mono',monospace;margin-left:auto">${p.value}</span>
+            </div>`;
+          }
+        });
+        return html;
+      }
+    },
+    legend: {
+      data: series.map(s => s.name),
+      bottom: 0,
+      textStyle: { fontFamily: 'DM Sans', color: '#6B6560' },
+      itemWidth: 20, itemHeight: 3
+    },
+    grid: { left: 60, right: 20, top: 20, bottom: 60, containLabel: false },
+    xAxis: {
+      type: 'category',
+      data: xLabels,
+      axisLabel: {
+        formatter: xFormatter,
+        color: '#9E9890',
+        fontSize: 11,
+        interval: granularity === 'day' ? Math.floor(xLabels.length / 20) : 0,
+        rotate: granularity === 'day' ? 30 : 0
+      },
+      axisLine: { lineStyle: { color: '#E2DDD8' } },
+      axisTick: { show: false }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: '#9E9890', fontSize: 11, fontFamily: 'JetBrains Mono' },
+      splitLine: { lineStyle: { color: '#F0EDE8', type: 'dashed' } },
+      axisLine: { show: false }
+    },
+    dataZoom: [
+      { type: 'inside', start: 0, end: 100 },
+      {
+        type: 'slider',
+        start: 0, end: 100,
+        height: 24,
+        bottom: 28,
+        borderColor: '#E2DDD8',
+        fillerColor: 'rgba(37,99,235,0.08)',
+        handleStyle: { color: '#2563EB' },
+        textStyle: { color: '#9E9890', fontSize: 10 }
+      }
+    ],
+    series
+  };
+
+  mainChart.setOption(option, true);
+
+  // Subtitle
+  const totalDays = xLabels.length;
+  document.getElementById('chartSubtitle').textContent =
+    `${Array.from(activeYears).sort().join(', ')} · ${totalDays} điểm dữ liệu · Cuộn để zoom, kéo để pan`;
+}
+
+// ============================================================
+// RENDER SEASON CHART
+// ============================================================
+function renderSeasonChart() {
+  if (!seasonChart) {
+    seasonChart = echarts.init(document.getElementById('seasonChart'));
+  }
+
+  const seasonNames = SEASONS.map(s => s.emoji + ' ' + s.name);
+  const seriesArr = [];
+
+  for (const y of availableYears) {
+    if (!activeYears.has(y) || !allData[y]) continue;
+
+    const seasonTotals = SEASONS.map(season => {
+      const [sm, sd] = season.start.split('-').map(Number);
+      const [em, ed] = season.end.split('-').map(Number);
+      return allData[y].filter(d => {
+        const m = d.date.getMonth() + 1, day = d.date.getDate();
+        const afterStart = m > sm || (m === sm && day >= sd);
+        const beforeEnd = m < em || (m === em && day <= ed);
+        return afterStart && beforeEnd;
+      }).reduce((sum, d) => sum + d.sales, 0);
+    });
+
+    seriesArr.push({
+      name: String(y),
+      type: 'bar',
+      data: seasonTotals,
+      itemStyle: { color: YEAR_COLORS[y], borderRadius: [3, 3, 0, 0] },
+      barMaxWidth: 20
+    });
+  }
+
+  seasonChart.setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#fff',
+      borderColor: '#E2DDD8',
+      textStyle: { fontFamily: 'DM Sans', color: '#1A1714' }
+    },
+    legend: {
+      data: seriesArr.map(s => s.name),
+      bottom: 0,
+      textStyle: { fontFamily: 'DM Sans', color: '#6B6560' }
+    },
+    grid: { left: 50, right: 10, top: 10, bottom: 60, containLabel: false },
+    xAxis: {
+      type: 'category',
+      data: seasonNames,
+      axisLabel: { color: '#9E9890', fontSize: 10, rotate: 35, fontFamily: 'DM Sans' },
+      axisLine: { lineStyle: { color: '#E2DDD8' } },
+      axisTick: { show: false }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: '#9E9890', fontSize: 10, fontFamily: 'JetBrains Mono' },
+      splitLine: { lineStyle: { color: '#F0EDE8', type: 'dashed' } },
+      axisLine: { show: false }
+    },
+    series: seriesArr
+  }, true);
+}
+
+// ============================================================
+// SUMMARY CARDS
+// ============================================================
+function renderCards() {
+  const grid = document.getElementById('cardsGrid');
+  grid.innerHTML = '';
+
+  // Total per year + YoY
+  const yearTotals = {};
+  for (const y of availableYears) {
+    if (!allData[y]) continue;
+    yearTotals[y] = allData[y].reduce((s, d) => s + d.sales, 0);
+  }
+
+  const sortedYears = availableYears.sort();
+
+  for (const y of sortedYears) {
+    const total = yearTotals[y] || 0;
+    const prevYear = y - 1;
+    const prevTotal = yearTotals[prevYear];
+    let yoyHtml = '';
+    if (prevTotal) {
+      const pct = ((total - prevTotal) / prevTotal * 100).toFixed(1);
+      const cls = pct > 0 ? 'up' : pct < 0 ? 'down' : 'neutral';
+      const arrow = pct > 0 ? '↑' : '↓';
+      yoyHtml = `<div class="yoy-badge ${cls}">${arrow} ${Math.abs(pct)}% vs ${prevYear}</div>`;
+    }
+
+    // Best day
+    const bestDay = allData[y] ? [...allData[y]].sort((a,b) => b.sales - a.sales)[0] : null;
+    const bestDayStr = bestDay ? formatDate(bestDay.date).slice(5).replace('-','/') + ` (${bestDay.sales})` : '—';
+
+    grid.innerHTML += `
+      <div class="card" style="opacity:${activeYears.has(y) ? 1 : 0.4}">
+        <div class="card-accent-bar" style="background:${YEAR_COLORS[y]}"></div>
+        <div class="card-label">${y}</div>
+        <div class="card-value">${total.toLocaleString()}</div>
+        <div class="card-sub">đơn hàng · Peak: ${bestDayStr}</div>
+        ${yoyHtml}
+      </div>
+    `;
+  }
+
+  // Overall best day
+  let globalBest = null;
+  for (const y of availableYears) {
+    if (!allData[y]) continue;
+    for (const d of allData[y]) {
+      if (!globalBest || d.sales > globalBest.sales) globalBest = { ...d, year: y };
+    }
+  }
+
+  if (globalBest) {
+    grid.innerHTML += `
+      <div class="card">
+        <div class="card-accent-bar" style="background: linear-gradient(90deg, #F59E0B, #EF4444)"></div>
+        <div class="card-label">🏆 Kỷ lục mọi thời đại</div>
+        <div class="card-value">${globalBest.sales}</div>
+        <div class="card-sub">${formatDate(globalBest.date)} · ${globalBest.year}</div>
+        <div class="yoy-badge up">All-time High</div>
+      </div>
+    `;
+  }
+}
+
+// ============================================================
+// TOP DAYS
+// ============================================================
+function renderTopDays() {
+  const allDays = [];
+  for (const y of availableYears) {
+    if (!allData[y]) continue;
+    allData[y].forEach(d => allDays.push({ ...d, year: y }));
+  }
+  allDays.sort((a, b) => b.sales - a.sales);
+  const top10 = allDays.slice(0, 10);
+
+  const list = document.getElementById('topDaysList');
+  list.innerHTML = top10.map((d, i) => {
+    const yc = YEAR_COLORS[d.year];
+    const dateStr = formatDate(d.date).slice(5).replace('-', '/');
+    const season = SEASONS.find(s => {
+      const mmdd = formatDate(d.date).slice(5);
+      return mmdd >= s.start && mmdd <= s.end;
+    });
+    return `
+      <li class="top-day-item">
+        <span class="top-day-rank">#${i+1}</span>
+        <span class="top-day-date">${dateStr} ${season ? season.emoji : ''}</span>
+        <span class="top-day-year" style="background:${yc}">${d.year}</span>
+        <span class="top-day-sales">${d.sales}</span>
+      </li>
+    `;
+  }).join('');
+}
+
+// ============================================================
+// SEASON LEGEND
+// ============================================================
+function renderSeasonLegend() {
+  const legend = document.getElementById('seasonLegend');
+  if (!showSeasons) { legend.style.display = 'none'; return; }
+  legend.style.display = 'flex';
+  legend.innerHTML = SEASONS.map(s => `
+    <div class="season-chip" style="background:${s.color}22;border-color:${s.color}55;color:${s.color}">
+      <div class="season-dot" style="background:${s.color}"></div>
+      ${s.emoji} ${s.name}
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// YEAR BUTTONS
+// ============================================================
+function renderYearButtons() {
+  const container = document.getElementById('yearButtons');
+  container.innerHTML = availableYears.map(y => `
+    <button class="year-btn ${activeYears.has(y) ? 'active-' + y : ''}"
+      onclick="toggleYear(${y}, this)">${y}</button>
+  `).join('');
+}
+
+function toggleYear(y, btn) {
+  if (activeYears.has(y)) {
+    if (activeYears.size <= 1) return; // Keep at least 1
+    activeYears.delete(y);
+    btn.className = 'year-btn';
+  } else {
+    activeYears.add(y);
+    btn.className = `year-btn active-${y}`;
+  }
+  renderAll();
+}
+
+// ============================================================
+// CONTROLS
+// ============================================================
+function setGranularity(gran, btn) {
+  granularity = gran;
+  document.querySelectorAll('.gran-btn[data-gran]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
+function toggleSeasons() {
+  showSeasons = !showSeasons;
+  const btn = document.getElementById('seasonToggle');
+  btn.classList.toggle('on', showSeasons);
+  renderAll();
+}
+
+function setRange(range, btn) {
+  rangeFilter = range;
+  document.querySelectorAll('[onclick^="setRange"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
+function renderAll() {
+  renderCards();
+  renderMainChart();
+  renderSeasonChart();
+  renderTopDays();
+  renderSeasonLegend();
+}
+
+// ============================================================
+// LOADING HELPERS
+// ============================================================
+function setLoading(msg) {
+  document.getElementById('loadingText').textContent = msg;
+}
+
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.add('hidden');
+}
+
+function showError(msg) {
+  const b = document.getElementById('errorBanner');
+  b.style.display = 'block';
+  b.textContent = '⚠️ ' + msg;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('resize', () => {
+  mainChart && mainChart.resize();
+  seasonChart && seasonChart.resize();
+});
+
+(async () => {
+  try {
+    await loadAllData();
+    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('vi-VN');
+    renderYearButtons();
+    renderAll();
+    hideLoading();
+  } catch(e) {
+    console.error(e);
+    hideLoading();
+    showError('Không thể tải dữ liệu từ Google Sheet. Kiểm tra kết nối hoặc quyền truy cập sheet. ' + e.message);
+  }
+})();
+</script>
+</body>
+</html>
