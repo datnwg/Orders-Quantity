@@ -1140,14 +1140,22 @@ function renderCards() {
   const grid = document.getElementById('cardsGrid');
   grid.innerHTML = '';
 
-  // Total per year + YoY
+  // Range label for card header
+  const rangeLabels = { all: 'Cả năm', q1: 'Quý I', q2: 'Quý II', q3: 'Quý III', q4: 'Quý IV' };
+  const rangeLabel = rangeLabels[rangeFilter] || 'Cả năm';
+
+  // Compute totals respecting current rangeFilter
   const yearTotals = {};
+  const yearBestDay = {};
   for (const y of availableYears) {
     if (!allData[y]) continue;
-    yearTotals[y] = allData[y].reduce((s, d) => s + d.sales, 0);
+    const filtered = filterByRange(allData[y], rangeFilter);
+    yearTotals[y] = filtered.reduce((s, d) => s + d.sales, 0);
+    const sorted = [...filtered].sort((a, b) => b.sales - a.sales);
+    yearBestDay[y] = sorted[0] || null;
   }
 
-  const sortedYears = availableYears.sort();
+  const sortedYears = [...availableYears].sort();
 
   for (const y of sortedYears) {
     const total = yearTotals[y] || 0;
@@ -1156,19 +1164,20 @@ function renderCards() {
     let yoyHtml = '';
     if (prevTotal) {
       const pct = ((total - prevTotal) / prevTotal * 100).toFixed(1);
-      const cls = pct > 0 ? 'up' : pct < 0 ? 'down' : 'neutral';
-      const arrow = pct > 0 ? '↑' : '↓';
+      const cls = parseFloat(pct) > 0 ? 'up' : parseFloat(pct) < 0 ? 'down' : 'neutral';
+      const arrow = parseFloat(pct) > 0 ? '↑' : '↓';
       yoyHtml = `<div class="yoy-badge ${cls}">${arrow} ${Math.abs(pct)}% vs ${prevYear}</div>`;
     }
 
-    // Best day
-    const bestDay = allData[y] ? [...allData[y]].sort((a,b) => b.sales - a.sales)[0] : null;
-    const bestDayStr = bestDay ? formatDate(bestDay.date).slice(5).replace('-','/') + ` (${bestDay.sales})` : '—';
+    const bestDay = yearBestDay[y];
+    const bestDayStr = bestDay
+      ? formatDate(bestDay.date).slice(5).replace('-','/') + ` (${bestDay.sales})`
+      : '—';
 
     grid.innerHTML += `
       <div class="card" style="opacity:${activeYears.has(y) ? 1 : 0.4}">
         <div class="card-accent-bar" style="background:${YEAR_COLORS[y]}"></div>
-        <div class="card-label">${y}</div>
+        <div class="card-label">${y} · <span style="color:var(--accent);font-weight:600">${rangeLabel}</span></div>
         <div class="card-value">${total.toLocaleString()}</div>
         <div class="card-sub">đơn hàng · Peak: ${bestDayStr}</div>
         ${yoyHtml}
@@ -1176,11 +1185,12 @@ function renderCards() {
     `;
   }
 
-  // Overall best day
+  // Best day in current range across all years
   let globalBest = null;
   for (const y of availableYears) {
     if (!allData[y]) continue;
-    for (const d of allData[y]) {
+    const filtered = filterByRange(allData[y], rangeFilter);
+    for (const d of filtered) {
       if (!globalBest || d.sales > globalBest.sales) globalBest = { ...d, year: y };
     }
   }
@@ -1189,7 +1199,7 @@ function renderCards() {
     grid.innerHTML += `
       <div class="card">
         <div class="card-accent-bar" style="background: linear-gradient(90deg, #F59E0B, #EF4444)"></div>
-        <div class="card-label">🏆 Kỷ lục mọi thời đại</div>
+        <div class="card-label">🏆 Kỷ lục · <span style="color:var(--accent);font-weight:600">${rangeLabel}</span></div>
         <div class="card-value">${globalBest.sales}</div>
         <div class="card-sub">${formatDate(globalBest.date)} · ${globalBest.year}</div>
         <div class="yoy-badge up">All-time High</div>
@@ -1200,12 +1210,12 @@ function renderCards() {
 
 // ============================================================
 // TOP DAYS
-// ============================================================
-function renderTopDays() {
+// ============================================================ {
   const allDays = [];
   for (const y of availableYears) {
     if (!allData[y]) continue;
-    allData[y].forEach(d => allDays.push({ ...d, year: y }));
+    const filtered = filterByRange(allData[y], rangeFilter);
+    filtered.forEach(d => allDays.push({ ...d, year: y }));
   }
   allDays.sort((a, b) => b.sales - a.sales);
   const top10 = allDays.slice(0, 10);
